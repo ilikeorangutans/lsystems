@@ -1,0 +1,9 @@
+hash: bbb0c99f77f55bc7c67e9256c575620e1f0aa401f81bb2c376c1d377285d5fa5
+updated: 2016-08-16T21:42:50.791289446-04:00
+imports:
+- name: github.com/veandco/go-sdl2
+  version: 77301d50e7500e78015bcb5ba4b96f9e37428c62
+  subpackages:
+  - sdl_ttf
+  - sdl
+devImports: []
