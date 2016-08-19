@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"runtime"
+	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
 	ttf "github.com/veandco/go-sdl2/sdl_ttf"
@@ -30,7 +33,9 @@ func main() {
 
 	//font := loadFont()
 
-	window, err := sdl.CreateWindow("test", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, 800, 600, sdl.WINDOW_SHOWN|sdl.WINDOW_RESIZABLE)
+	viewport := &sdl.Rect{0, 0, 800, 600}
+
+	window, err := sdl.CreateWindow("test", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, int(viewport.W), int(viewport.H), sdl.WINDOW_SHOWN|sdl.WINDOW_RESIZABLE)
 	if err != nil {
 		panic(err)
 	}
@@ -48,12 +53,15 @@ func main() {
 	productions['Y'] = "-FX-Y"
 	productions['F'] = ""
 
-	result := productions.ApplyTimes(input, 14)
+	result := productions.ApplyTimes(input, 10)
 
-	x := 400
-	y := 300
+	x := 0
+	y := 0
 	angle := 0
 	stepsize := 5
+
+	timer := time.NewTicker(time.Second * 1)
+	defer timer.Stop()
 
 	running := true
 	var event sdl.Event
@@ -64,19 +72,43 @@ func main() {
 				running = false
 
 			case *sdl.KeyDownEvent:
-				if t.Keysym.Sym == sdl.K_ESCAPE {
+				switch t.Keysym.Sym {
+				case sdl.K_ESCAPE:
 					running = false
+				case sdl.K_LEFT:
+					viewport.X -= 10
+				case sdl.K_RIGHT:
+					viewport.X += 10
+				case sdl.K_UP:
+					viewport.Y -= 10
+				case sdl.K_DOWN:
+					viewport.Y += 10
+				case sdl.K_KP_MINUS:
+					stepsize--
+					if stepsize < 1 {
+						stepsize = 1
+					}
+				case sdl.K_KP_PLUS:
+					stepsize++
+
 				}
 
+			case *sdl.WindowEvent:
+				if t.Event == sdl.WINDOWEVENT_RESIZED {
+					viewport.W = t.Data1
+					viewport.H = t.Data2
+					log.Printf("Window resized")
+				}
 			}
 		}
 
+		start := time.Now()
 		renderer.SetDrawColor(0, 0, 0, 0)
 		renderer.Clear()
 
 		angle = 0
-		x = 400
-		y = 300
+		x = 0
+		y = 0
 
 		for i := range result {
 			cur := result[i]
@@ -102,14 +134,20 @@ func main() {
 				angle += 90
 			case '-':
 				angle -= 90
+
 			default:
 				newX = x + dx
 				newY = y + dy
 
-				renderer.SetDrawColor(255, 255, 255, 255)
-				renderer.DrawLine(x, y, newX, newY)
+				if PointInRect(viewport, x, y) || PointInRect(viewport, newX, newY) {
+
+					renderer.SetDrawColor(255, 255, 255, 255)
+					renderer.DrawLine(x-int(viewport.X), y-int(viewport.Y), newX-int(viewport.X), newY-int(viewport.Y))
+				}
+
 				x = newX
 				y = newY
+
 			}
 
 			angle = angle % 360
@@ -118,8 +156,19 @@ func main() {
 			}
 		}
 
+		select {
+		case <-timer.C:
+			duration := time.Since(start)
+			fmt.Printf("render took %s, view: %v\n", duration, viewport)
+		default:
+		}
+
 		renderer.Present()
 		sdl.Delay(33)
 	}
 
+}
+
+func PointInRect(rect *sdl.Rect, x int, y int) bool {
+	return rect.X < int32(x) && int32(x) < rect.X+rect.W && rect.Y < int32(y) && int32(y) < rect.Y+rect.H
 }
